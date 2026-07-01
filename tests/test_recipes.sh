@@ -319,23 +319,76 @@ test_solo_mode_removes_ray() {
     fi
 }
 
-# Test: Cluster mode preserves --distributed-executor-backend ray
-test_cluster_mode_keeps_ray() {
-    log_test "Cluster mode preserves --distributed-executor-backend ray"
-    
-    # Use minimax-m2-awq which explicitly has --distributed-executor-backend ray
+# Test: Explicit backend flags are rejected in solo mode
+test_solo_mode_rejects_backend_flags() {
+    log_test "Solo mode rejects explicit backend flags"
+
+    recipe_name=$(find_solo_recipe)
+    if [[ -z "$recipe_name" ]]; then
+        log_skip "No solo-capable recipes found"
+        return
+    fi
+
+    output_no_ray=$("$PROJECT_DIR/run-recipe.py" "$recipe_name" --dry-run --solo --no-ray 2>&1)
+    status_no_ray=$?
+    output_ray=$("$PROJECT_DIR/run-recipe.py" "$recipe_name" --dry-run --solo --ray 2>&1)
+    status_ray=$?
+
+    no_ray_rejected=false
+    ray_rejected=false
+    if [[ $status_no_ray -ne 0 ]] && echo "$output_no_ray" | grep -q -- "--no-ray is incompatible"; then
+        no_ray_rejected=true
+    fi
+    if [[ $status_ray -ne 0 ]] && echo "$output_ray" | grep -q -- "--ray is incompatible"; then
+        ray_rejected=true
+    fi
+
+    if [[ "$no_ray_rejected" == "true" && "$ray_rejected" == "true" ]]; then
+        log_pass "Solo mode rejects --ray and --no-ray"
+    else
+        log_fail "Solo mode did not reject explicit backend flags"
+        log_verbose "--no-ray status=$status_no_ray output=$output_no_ray"
+        log_verbose "--ray status=$status_ray output=$output_ray"
+    fi
+}
+
+# Test: Cluster mode defaults to no-Ray and strips --distributed-executor-backend ray
+test_cluster_mode_defaults_no_ray() {
+    log_test "Cluster mode defaults to no-Ray"
+
+    # Use minimax-m2-awq which explicitly has --distributed-executor-backend ray in the recipe
     if [[ ! -f "$PROJECT_DIR/recipes/minimax-m2-awq.yaml" ]]; then
         log_skip "minimax-m2-awq.yaml not found"
         return
     fi
-    
+
     output=$("$PROJECT_DIR/run-recipe.py" minimax-m2-awq --dry-run -n "192.168.1.1,192.168.1.2" 2>&1)
-    
-    # Check that --distributed-executor-backend IS in the output for cluster mode
-    if echo "$output" | grep -q "\-\-distributed-executor-backend ray"; then
-        log_pass "Cluster mode correctly preserves --distributed-executor-backend ray"
+
+    if ! echo "$output" | grep -q "\-\-distributed-executor-backend"; then
+        log_pass "Cluster mode correctly strips --distributed-executor-backend by default"
     else
-        log_fail "Cluster mode did not preserve --distributed-executor-backend"
+        log_fail "Cluster mode did not strip --distributed-executor-backend by default"
+        log_verbose "$output"
+    fi
+}
+
+# Test: --ray adds --distributed-executor-backend ray when recipe omits it
+test_ray_mode_adds_ray_backend() {
+    log_test "--ray adds --distributed-executor-backend ray"
+
+    # glm-4.7-flash-awq does not include the Ray backend in the recipe command
+    if [[ ! -f "$PROJECT_DIR/recipes/glm-4.7-flash-awq.yaml" ]]; then
+        log_skip "glm-4.7-flash-awq.yaml not found"
+        return
+    fi
+
+    output=$("$PROJECT_DIR/run-recipe.py" glm-4.7-flash-awq --dry-run -n "192.168.1.1,192.168.1.2" --ray 2>&1)
+    launch_cmd=$(extract_launch_cmd "$output")
+
+    if echo "$output" | grep -q "\-\-distributed-executor-backend ray" && echo "$launch_cmd" | grep -q "\-\-ray"; then
+        log_pass "--ray adds backend flag and passes --ray to launch-cluster.sh"
+    else
+        log_fail "--ray did not add backend flag or launch flag"
         log_verbose "$output"
     fi
 }
@@ -377,6 +430,13 @@ test_launch_cluster_help() {
         log_pass "--help documents --keep-entrypoint"
     else
         log_fail "--help does not document --keep-entrypoint"
+        log_verbose "$output"
+    fi
+
+    if echo "$output" | grep -q -- "--ray"; then
+        log_pass "--help documents --ray"
+    else
+        log_fail "--help does not document --ray"
         log_verbose "$output"
     fi
 
@@ -1040,14 +1100,14 @@ verify_cluster_args() {
     fi
 }
 
-# Test: openai-gpt-oss-120b cluster mode has correct tensor_parallel and ray backend
+# Test: openai-gpt-oss-120b cluster mode has correct tensor_parallel
 test_readme_gpt_oss_cluster() {
     verify_cluster_args "openai-gpt-oss-120b" \
         "$GPT_OSS_CLUSTER_TP" \
         "${GPT_OSS_CLUSTER_ARGS[@]}"
 }
 
-# Test: minimax-m2-awq cluster mode has correct tensor_parallel and ray backend
+# Test: minimax-m2-awq cluster mode has correct tensor_parallel
 test_readme_minimax_cluster() {
     verify_cluster_args "minimax-m2-awq" \
         "$MINIMAX_CLUSTER_TP" \
@@ -1331,7 +1391,9 @@ main() {
     test_dry_run_generates_script
     test_solo_mode_tp1
     test_solo_mode_removes_ray
-    test_cluster_mode_keeps_ray
+    test_solo_mode_rejects_backend_flags
+    test_cluster_mode_defaults_no_ray
+    test_ray_mode_adds_ray_backend
     test_cli_override_port
     echo ""
     

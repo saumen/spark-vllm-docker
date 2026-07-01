@@ -142,6 +142,24 @@ For periodic maintenance, I recommend using a filter: `docker builder prune --fi
 
 ## CHANGELOG
 
+### 2026-07-01
+
+#### No-Ray is now the default multi-node backend
+
+`launch-cluster.sh` and `run-recipe.sh` now default to no-Ray multi-node launches. Use `--ray` to opt into Ray; Ray mode ensures vLLM commands include `--distributed-executor-backend ray` when they omit it. `--no-ray` remains accepted for compatibility in multi-node launches.
+
+#### Build and dependency updates
+
+We now use NCCL `main` branch and include new experimental vLLM Rust frontend in the builds. DeepGEMM now tracks the `nv_dev` branch.
+
+#### Transformers 5 flag deprecation
+
+`--tf5`, `--pre-tf`, and `--pre-transformers` are now deprecated compatibility aliases. They no longer override dependency resolution; they only preserve the legacy default image tag. Recipes that previously used `vllm-node-tf5` now use the standard `vllm-node` image.
+
+#### Recipe updates
+
+Added the `gemma4-26b-a4b-nvfp4` recipe, reverted the Qwen3.6-35B-A3B-NVFP4 recipes to `--kv-cache-dtype fp8`, and cleaned up stale TF5 build args from affected recipes.
+
 ### 2026-06-22
 
 #### Deepseek V4 Flash support
@@ -1375,7 +1393,8 @@ You can override the auto-detected values if needed:
 | `--check-config` | Check configuration and auto-detection without launching. |
 | `--solo` | Solo mode: skip autodetection, launch only on current node, do not launch Ray cluster |
 | `-p, --publish` | Publish a container port in Docker format, for example `-p 8000:8000`. Solo mode only; replaces host networking. Can be used multiple times. |
-| `--no-ray` | No-Ray mode: run multi-node vLLM without Ray (uses PyTorch distributed backend). |
+| `--ray` | Opt into Ray for multi-node vLLM and add `--distributed-executor-backend ray` when missing. |
+| `--no-ray` | Default multi-node no-Ray mode; accepted for compatibility. |
 | `--master-port` / `--head-port` | Port for cluster coordination: Ray head port or PyTorch distributed master port (default: 29501). |
 | `--no-cache-dirs` | Do not mount default cache directories (~/.cache/vllm, ~/.cache/flashinfer, ~/.triton, ~/.tilelang). |
 | `--keep-entrypoint` | Keep the Docker image entrypoint instead of clearing it before launching the idle cluster container. |
@@ -1618,7 +1637,7 @@ vllm serve openai/gpt-oss-120b \
 
 The `examples/` directory contains ready-to-use launch scripts:
 
-- **example-vllm-minimax.sh** - MiniMax-M2-AWQ with Ray distributed backend
+- **example-vllm-minimax.sh** - MiniMax-M2-AWQ cluster launch example
 - **vllm-openai-gpt-oss-120b.sh** - OpenAI GPT-OSS 120B with FlashInfer MOE
 - **vllm-glm-4.7-nvfp4.sh** - GLM-4.7-NVFP4 (requires the glm4_moe patch mod)
 

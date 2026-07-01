@@ -78,12 +78,8 @@ GLM_FLASH_AWQ_CLUSTER_TP="1"
 
 # openai-gpt-oss-120b cluster mode (2 nodes = tp 2)
 GPT_OSS_CLUSTER_TP="2"
-GPT_OSS_CLUSTER_ARGS=(
-    "--distributed-executor-backend ray"
-)
+GPT_OSS_CLUSTER_ARGS=()
 
 # minimax-m2-awq cluster mode (2 nodes = tp 2)
 MINIMAX_CLUSTER_TP="2"
-MINIMAX_CLUSTER_ARGS=(
-    "--distributed-executor-backend ray"
-)
+MINIMAX_CLUSTER_ARGS=()

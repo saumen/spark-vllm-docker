@@ -189,7 +189,8 @@ Setup options:
 
 Launch options:
   --solo                      Run in solo mode (single node, no Ray)
-  --no-ray                    Multi-node without Ray (PyTorch distributed backend)
+  --ray                       Opt into Ray for multi-node vLLM
+  --no-ray                    Default multi-node no-Ray mode (accepted for compatibility)
   -n, --nodes IPS             Comma-separated node IPs (first = head)
   -d, --daemon                Run in daemon mode
   -t, --container IMAGE       Override container from recipe
