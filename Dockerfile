@@ -313,6 +313,29 @@ RUN set -eux; \
         done; \
     fi
 
+# TEMPORARY PATCH: revert vLLM PR #46756 / commit debec6440. It routes
+# ModelOpt MIXED_PRECISION MXFP8 entries through MXFP8 linear/MoE methods,
+# which corrupts generation for Qwen3.6-35B-A3B-NVFP4 and
+# Nemotron-3-Super-120B-A12B-NVFP4. Remove once upstream lands a fix.
+RUN set -eux; \
+    bad_commit="debec6440b89fe6ab14acb00e6eb2b04257f57a2"; \
+    target="vllm/model_executor/layers/quantization/modelopt.py"; \
+    marker='return ModelOptMxFp8LinearMethod(self.mxfp8_config)'; \
+    if git merge-base --is-ancestor "$bad_commit" HEAD && grep -Fq "$marker" "$target"; then \
+        echo "Reverting vLLM ModelOpt mixed MXFP8 regression commit ${bad_commit}"; \
+        if ! git revert --no-commit "$bad_commit"; then \
+            git revert --abort 2>/dev/null || true; \
+            echo "ERROR: failed to revert ${bad_commit}; upstream likely changed the ModelOpt MXFP8 path"; \
+            exit 1; \
+        fi; \
+        if grep -Fq "$marker" "$target"; then \
+            echo "ERROR: ModelOpt mixed MXFP8 dispatch marker is still present after revert"; \
+            exit 1; \
+        fi; \
+    else \
+        echo "ModelOpt mixed MXFP8 regression marker not present, or ${bad_commit} is not in this vLLM ref; skipping revert"; \
+    fi
+
 # TEMPORARY PATCH (source build only): vLLM PR #43008 selects cooperative_topk
 # for all SM90+ devices. On DGX Spark / SM12.x this fails at launch with
 # "cooperative_topk launch failed: invalid argument". Keep the cooperative
