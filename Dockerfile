@@ -266,7 +266,10 @@ RUN --mount=type=cache,id=repo-cache,target=/repo-cache \
 
 WORKDIR $VLLM_BASE_DIR/vllm
 
-ARG VLLM_PRESET_PRS=""
+# Temporary upstream fixes carried until they are present in the pinned vLLM ref.
+# See https://github.com/vllm-project/vllm/pull/47445
+# See https://github.com/vllm-project/vllm/pull/47392
+ARG VLLM_PRESET_PRS="47445 47392"
 ARG VLLM_APPLY_PRESET_PRS=""
 ARG VLLM_PRS=""
 
@@ -311,29 +314,6 @@ RUN set -eux; \
                 git merge pr-${pr} --no-edit; \
             fi; \
         done; \
-    fi
-
-# TEMPORARY PATCH: revert vLLM PR #46756 / commit debec6440. It routes
-# ModelOpt MIXED_PRECISION MXFP8 entries through MXFP8 linear/MoE methods,
-# which corrupts generation for Qwen3.6-35B-A3B-NVFP4 and
-# Nemotron-3-Super-120B-A12B-NVFP4. Remove once upstream lands a fix.
-RUN set -eux; \
-    bad_commit="debec6440b89fe6ab14acb00e6eb2b04257f57a2"; \
-    target="vllm/model_executor/layers/quantization/modelopt.py"; \
-    marker='return ModelOptMxFp8LinearMethod(self.mxfp8_config)'; \
-    if git merge-base --is-ancestor "$bad_commit" HEAD && grep -Fq "$marker" "$target"; then \
-        echo "Reverting vLLM ModelOpt mixed MXFP8 regression commit ${bad_commit}"; \
-        if ! git revert --no-commit "$bad_commit"; then \
-            git revert --abort 2>/dev/null || true; \
-            echo "ERROR: failed to revert ${bad_commit}; upstream likely changed the ModelOpt MXFP8 path"; \
-            exit 1; \
-        fi; \
-        if grep -Fq "$marker" "$target"; then \
-            echo "ERROR: ModelOpt mixed MXFP8 dispatch marker is still present after revert"; \
-            exit 1; \
-        fi; \
-    else \
-        echo "ModelOpt mixed MXFP8 regression marker not present, or ${bad_commit} is not in this vLLM ref; skipping revert"; \
     fi
 
 # TEMPORARY PATCH (source build only): vLLM PR #43008 selects cooperative_topk
