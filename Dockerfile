@@ -3,6 +3,7 @@
 # Limit build parallelism to reduce OOM situations
 ARG BUILD_JOBS=16
 ARG CUDA_IMAGE=nvidia/cuda:13.0.2-devel-ubuntu24.04
+ARG NCCL_NVCC_GENCODE="-gencode=arch=compute_121,code=sm_121"
 
 # =========================================================
 # STAGE 1: Base Build Image
@@ -69,6 +70,7 @@ ENV CMAKE_CUDA_COMPILER_LAUNCHER=ccache
 # 2. Set Environment Variables
 ARG TORCH_CUDA_ARCH_LIST="12.1a"
 ENV TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST}
+ARG NCCL_NVCC_GENCODE
 ENV TRITON_PTXAS_PATH=/usr/local/cuda/bin/ptxas
 
 # Setup Workspace
@@ -76,11 +78,11 @@ WORKDIR $VLLM_BASE_DIR
 
 # Build NCCL with mesh support (TODO: only do it if arch is 12.1) - artifacts will be in /workspace/nccl/build/pkg/deb
 # RUN git clone -b dgxspark-3node-ring https://github.com/zyang-dev/nccl.git && \
-#     cd nccl && make -j ${BUILD_JOBS} src.build NVCC_GENCODE="-gencode=arch=compute_121,code=sm_121" && \
+#     cd nccl && make -j ${BUILD_JOBS} src.build NVCC_GENCODE="${NCCL_NVCC_GENCODE}" && \
 #     make pkg.debian.build && apt install -y --no-install-recommends --allow-downgrades ./build/pkg/deb/*.deb
 
 RUN git clone https://github.com/NVIDIA/nccl.git && \
-    cd nccl && make -j ${BUILD_JOBS} src.build NVCC_GENCODE="-gencode=arch=compute_121,code=sm_121" && \
+    cd nccl && make -j ${BUILD_JOBS} src.build NVCC_GENCODE="${NCCL_NVCC_GENCODE}" && \
     make pkg.debian.build && apt install -y --no-install-recommends --allow-downgrades --allow-change-held-packages ./build/pkg/deb/*.deb
 
 # =========================================================

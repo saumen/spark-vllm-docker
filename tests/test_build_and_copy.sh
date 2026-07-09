@@ -183,6 +183,7 @@ test_non_default_gpu_arch_uses_wheel_build() {
     run_build --gpu-arch 12.0f || fail "non-default gpu arch run failed"
     assert_log_not_contains '^docker pull eugr/spark-vllm:latest$'
     assert_log_contains '^docker build -t vllm-node '
+    assert_log_contains 'NCCL_NVCC_GENCODE=-gencode=arch=compute_120,code=sm_120'
     pass "non-default gpu arch uses wheel build path"
 }
 
