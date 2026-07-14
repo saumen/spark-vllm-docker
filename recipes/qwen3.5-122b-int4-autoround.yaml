@@ -7,8 +7,9 @@ description: vLLM serving Qwen3.5-122B-INT4-Autoround
 
 # HuggingFace model to download (optional, for --download-model)
 model: Intel/Qwen3.5-122B-A10B-int4-AutoRound
+# model: RedHatAI/Qwen3.5-122B-A10B-NVFP4
 
-#solo_only: true
+solo_only: true
 
 # Container image to use
 container: vllm-node
@@ -20,15 +21,15 @@ mods:
 
 # Default settings (can be overridden via CLI)
 defaults:
-  port: 8000
+  port: 8888
   host: 0.0.0.0
-  tensor_parallel: 2
+  tensor_parallel: 1
   gpu_memory_utilization: 0.8
-  max_model_len: 262144
-  max_num_batched_tokens: 8192
+  max_model_len: 150000
+  max_num_batched_tokens: 32768
 
 # Environment variables
-env: 
+env:
   VLLM_MARLIN_USE_ATOMIC_ADD: 1
 
 # The vLLM serve command template
@@ -44,8 +45,13 @@ command: |
     --tool-call-parser qwen3_xml \
     --reasoning-parser qwen3 \
     --max-num-batched-tokens {max_num_batched_tokens} \
+    --enable-chunked-prefill \
+    --async-scheduling \
+    --kv-cache-metrics \
+    --language-model-only \
+    --skip-mm-profiling \
+    --speculative-config '{{"method":"mtp","num_speculative_tokens":2}}' \
     --trust-remote-code \
     --chat-template unsloth.jinja \
     -tp {tensor_parallel} \
     --distributed-executor-backend ray
-
