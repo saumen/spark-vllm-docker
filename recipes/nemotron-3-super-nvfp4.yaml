@@ -7,33 +7,36 @@ description: vLLM serving Nemotron-3-Super-120B using CUTLASS kernels
 model: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4
 container: vllm-node
 cluster_only: false
-solo_only: false
+solo_only: true
 
-# mods: 
+# mods:
 #   - mods/nemotron-super
 
 env:
   VLLM_FLASHINFER_ALLREDUCE_BACKEND: trtllm
   VLLM_ALLOW_LONG_MAX_MODEL_LEN: 1
 
-container: vllm-node
 defaults:
-  port: 8000
+  port: 8888
   host: 0.0.0.0
-  tensor_parallel: 2
+  tensor_parallel: 1
   gpu_memory_utilization: 0.8
-  max_model_len: 262144
-  max_num_seqs: 10
+  max_model_len: 150000
+  max_num_seqs: 4
+  max_num_batched_tokens: 8192
 
 command: |
   vllm serve nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4 \
   --kv-cache-dtype fp8 \
-  --moe-backend cutlass \
+  --moe-backend auto \
   --trust-remote-code \
   --gpu-memory-utilization {gpu_memory_utilization} \
   --max-model-len {max_model_len} \
   --max-num-seqs {max_num_seqs} \
   --enable-prefix-caching \
+  --enable-chunked-prefill \
+  --async-scheduling \
+  --kv-cache-metrics \
   --host {host} \
   --port {port} \
   --enable-auto-tool-choice \
@@ -43,4 +46,8 @@ command: |
   --mamba_ssm_cache_dtype float32 \
   --tensor-parallel-size {tensor_parallel} \
   --attention-backend TRITON_ATTN \
+  --max-num-batched-tokens {max_num_batched_tokens} \
+  --language-model-only \
+  --skip-mm-profiling \
+  --speculative-config '{{"method":"mtp","num_speculative_tokens":2}}' \
   --distributed-executor-backend ray
