@@ -1831,3 +1831,31 @@ When `-c` is given without explicit hosts, the script checks `COPY_HOSTS` in `.e
 ### Hardware Architecture
 
 **Note:** This project targets `12.1a` architecture (NVIDIA GB10 / DGX Spark). If you are using different hardware, you can use `--gpu-arch` flag in `./build-and-copy.sh`.
+## LLM-Assisted Build
+
+You can ask an AI assistant to pull upstream changes and build a new Docker image for you. Use this prompt:
+
+```
+Please perform the following tasks in order:
+
+1. **Sync with upstream**:
+   + Fetch the latest changes from the upstream repository
+   + Merge them into the current branch
+   + Verify the merge completed successfully
+
+2. **Build a new Docker image** on the dgx-spark node:
+   + SSH into dgx-spark
+   + Navigate to the spark-vllm-docker directory using zoxide: `cd $(/usr/bin/zoxide query spark-vllm-docker)`
+   + Run the build script with a timestamped tag to avoid overwriting existing builds:
+     ```bash
+     bash build-and-copy.sh -t vllm-node-$(date +%Y%m%d-%H%M%S)
+     ```
+
+Follow the AGENTS.md guidelines for this fork throughout the process.
+```
+
+This prompt ensures the LLM will:
+ Pull the latest upstream changes (avoiding merge conflicts with your local modifications)
+ Create a new Docker image with a unique timestamped tag
+ Use the correct navigation method (zoxide) to avoid hardcoded paths
+ Follow the fork-specific guidelines documented in AGENTS.md

@@ -17,7 +17,7 @@ This document contains guidance **specific to this fork** that differs from the 
 git fetch upstream
 
 # Merge into your branch
-git pull upstream main
+git merge upstream/main
 
 # Push to your fork
 git push origin main
@@ -80,3 +80,20 @@ When pulling upstream changes, conflicts may occur in:
 - Check `run-recipe.py` for CLI argument definitions
 - Verify recipe syntax: `python3 -c "import yaml; yaml.safe_load(open('recipes/<name>.yaml'))"`
 - Test with `--dry-run` before actual execution
+## Building Docker Images
+
+### Build with Timestamped Tag (Recommended)
+
+To create a new Docker image without overwriting existing builds:
+
+```bash
+ssh dgx-spark "cd \$(/usr/bin/zoxide query spark-vllm-docker) && bash build-and-copy.sh -t vllm-node-\$(date +%Y%m%d-%H%M%S)"
+```
+
+### Common Build Options
+
+| Flag | Description | Example |
+|------|-------------|---------|
+| `-t TAG` | Custom image tag | `-t vllm-node-20260720-222239` |
+| `-c HOST` | Copy image to remote host | `-c dgx-spark` |
+| `--no-build` | Skip build, only copy existing | `-c dgx-spark --no-build` |
