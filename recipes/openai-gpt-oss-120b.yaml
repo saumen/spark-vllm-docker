@@ -23,7 +23,7 @@ mods: []
 
 # Default settings (can be overridden via CLI)
 defaults:
-  port: 8000
+  port: 8888
   host: 0.0.0.0
   tensor_parallel: 1
   gpu_memory_utilization: 0.8
